@@ -136,8 +136,15 @@ def load_vocab(vocab_file):
 def convert_by_vocab(vocab, items):
   """Converts a sequence of [tokens|ids] using the vocab."""
   output = []
+  unk_token = "[UNK]"
+  num_token = "[NUM]"
   for item in items:
-    output.append(vocab[item])
+    if FullTokenizer.num(item) != 0.0:
+      output.append(vocab[num_token])
+    elif item in vocab:
+      output.append(vocab[item])
+    else:
+      output.append(vocab[unk_token])
   return output
 
 
@@ -167,16 +174,32 @@ class FullTokenizer(object):
     self.basic_tokenizer = BasicTokenizer(do_lower_case=do_lower_case)
     self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab)
 
-  def tokenize(self, text):
-    split_tokens = []
-    for token in self.basic_tokenizer.tokenize(text):
-      for sub_token in self.wordpiece_tokenizer.tokenize(token):
-        split_tokens.append(sub_token)
+  #def tokenize(self, text):
+  #  split_tokens = []
+  #  for token in self.basic_tokenizer.tokenize(text):
+  #    for sub_token in self.wordpiece_tokenizer.tokenize(token):
+  #      split_tokens.append(sub_token)
 
-    return split_tokens
+  #  return split_tokens
+
+  def tokenize(self, text):
+    return text.lower().split()
 
   def convert_tokens_to_ids(self, tokens):
     return convert_by_vocab(self.vocab, tokens)
+
+  @staticmethod
+  def num(s):
+    try:
+      return float(s)
+    except:
+      return 0.0
+
+  def convert_tokens_to_floats(self, tokens):
+    output = []
+    for token in tokens:
+      output.append(FullTokenizer.num(token)) 
+    return output
 
   def convert_ids_to_tokens(self, ids):
     return convert_by_vocab(self.inv_vocab, ids)

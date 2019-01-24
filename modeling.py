@@ -32,7 +32,8 @@ class BertConfig(object):
 
   def __init__(self,
                vocab_size,
-               hidden_size=768,
+               # NOTE: modified here
+               hidden_size=768 + 1,
                num_hidden_layers=12,
                num_attention_heads=12,
                intermediate_size=3072,
@@ -131,6 +132,7 @@ class BertModel(object):
                config,
                is_training,
                input_ids,
+               input_floats,
                input_mask=None,
                token_type_ids=None,
                use_one_hot_embeddings=True,
@@ -184,6 +186,7 @@ class BertModel(object):
         # normalize and perform dropout.
         self.embedding_output = embedding_postprocessor(
             input_tensor=self.embedding_output,
+            input_floats=input_floats,
             use_token_type=True,
             token_type_ids=token_type_ids,
             token_type_vocab_size=config.type_vocab_size,
@@ -410,7 +413,12 @@ def embedding_lookup(input_ids,
 
   embedding_table = tf.get_variable(
       name=word_embedding_name,
-      shape=[vocab_size, embedding_size],
+      shape=[vocab_size, embedding_size - 1],
+      initializer=create_initializer(initializer_range))
+
+  float_table = tf.get_variable(
+      name="float_embeddings",
+      shape=[vocab_size, 1],
       initializer=create_initializer(initializer_range))
 
   if use_one_hot_embeddings:
@@ -423,11 +431,12 @@ def embedding_lookup(input_ids,
   input_shape = get_shape_list(input_ids)
 
   output = tf.reshape(output,
-                      input_shape[0:-1] + [input_shape[-1] * embedding_size])
-  return (output, embedding_table)
+                      input_shape[0:-1] + [input_shape[-1] * embedding_size - 1])
+  return (output, tf.concat([embedding_table, float_table], 1))
 
 
 def embedding_postprocessor(input_tensor,
+                            input_floats=None,
                             use_token_type=False,
                             token_type_ids=None,
                             token_type_vocab_size=16,
@@ -518,6 +527,12 @@ def embedding_postprocessor(input_tensor,
       position_embeddings = tf.reshape(position_embeddings,
                                        position_broadcast_shape)
       output += position_embeddings
+
+  if input_floats is not None:
+    input_floats = tf.expand_dims(input_floats, axis=[-1])
+    paddings = tf.zeros([batch_size, seq_length, 11], tf.float32)
+    output = tf.concat([output, input_floats], 2)
+    # output = tf.concat([output, paddings], 2)
 
   output = layer_norm_and_dropout(output, dropout_prob)
   return output

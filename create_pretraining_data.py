@@ -101,6 +101,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
   total_written = 0
   for (inst_index, instance) in enumerate(instances):
     input_ids = tokenizer.convert_tokens_to_ids(instance.tokens)
+    input_floats = tokenizer.convert_tokens_to_floats(instance.tokens)
     input_mask = [1] * len(input_ids)
     segment_ids = list(instance.segment_ids)
     assert len(input_ids) <= max_seq_length
@@ -109,29 +110,37 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
       input_ids.append(0)
       input_mask.append(0)
       segment_ids.append(0)
+      input_floats.append(0.0)
 
     assert len(input_ids) == max_seq_length
     assert len(input_mask) == max_seq_length
     assert len(segment_ids) == max_seq_length
+    assert len(input_ids) == max_seq_length
 
     masked_lm_positions = list(instance.masked_lm_positions)
     masked_lm_ids = tokenizer.convert_tokens_to_ids(instance.masked_lm_labels)
     masked_lm_weights = [1.0] * len(masked_lm_ids)
+    masked_lm_floats = tokenizer.convert_tokens_to_floats(instance.masked_lm_labels)
 
     while len(masked_lm_positions) < max_predictions_per_seq:
       masked_lm_positions.append(0)
       masked_lm_ids.append(0)
       masked_lm_weights.append(0.0)
+      masked_lm_floats.append(0.0)
+
+    print(masked_lm_floats)
 
     next_sentence_label = 1 if instance.is_random_next else 0
 
     features = collections.OrderedDict()
     features["input_ids"] = create_int_feature(input_ids)
+    features["input_floats"] = create_float_feature(input_floats)
     features["input_mask"] = create_int_feature(input_mask)
     features["segment_ids"] = create_int_feature(segment_ids)
     features["masked_lm_positions"] = create_int_feature(masked_lm_positions)
     features["masked_lm_ids"] = create_int_feature(masked_lm_ids)
     features["masked_lm_weights"] = create_float_feature(masked_lm_weights)
+    features["masked_lm_floats"] = create_float_feature(masked_lm_floats)
     features["next_sentence_labels"] = create_int_feature([next_sentence_label])
 
     tf_example = tf.train.Example(features=tf.train.Features(feature=features))
