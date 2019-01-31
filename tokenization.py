@@ -195,10 +195,18 @@ class FullTokenizer(object):
     except:
       return 0.0
 
+  @staticmethod
+  def num_with_unitcheck(s, u):
+    if u != "seconds":
+      return 0.0
+    return FullTokenizer.num(s)
+
   def convert_tokens_to_floats(self, tokens):
     output = []
-    for token in tokens:
-      output.append(FullTokenizer.num(token)) 
+    for idx, token in enumerate(tokens[:-1]):
+      output.append(FullTokenizer.num_with_unitcheck(token, tokens[idx + 1]))
+    if len(tokens) > 0:
+      output.append(0.0)
     return output
 
   def convert_ids_to_tokens(self, ids):
